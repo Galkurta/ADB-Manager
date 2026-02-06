@@ -110,10 +110,25 @@ class MirrorEngine(QObject):
         
         try:
             logger.info(f"Starting scrcpy: {' '.join(cmd)}")
+            
+            # Prepare subprocess arguments
+            kwargs = {
+                'stdout': asyncio.subprocess.PIPE,
+                'stderr': asyncio.subprocess.PIPE
+            }
+            
+            # Hide console window on Windows
+            import sys
+            import subprocess
+            if sys.platform == 'win32':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                kwargs['startupinfo'] = startupinfo
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                **kwargs
             )
             
             self._device = device
