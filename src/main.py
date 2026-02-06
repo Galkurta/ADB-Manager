@@ -31,8 +31,13 @@ def main():
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(sys.argv)
+    
+    # Version Control
+    __version__ = "0.1.0"
+    
     app.setApplicationName("ADB Manager")
     app.setOrganizationName("ADB Manager")
+    app.setApplicationVersion(__version__)
     
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)

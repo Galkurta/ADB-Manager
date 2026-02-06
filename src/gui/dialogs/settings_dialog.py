@@ -13,8 +13,10 @@ from PySide6.QtWidgets import (
     QFileDialog, QGroupBox, QMessageBox
 )
 from PySide6.QtCore import Qt, Slot, QSettings
+from PySide6.QtWidgets import QApplication
 
 from gui.themes import Theme
+from utils.update_checker import UpdateChecker
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,18 @@ class SettingsDialog(QDialog):
         behavior_layout.addWidget(self.minimize_tray_check)
         
         layout.addWidget(behavior_group)
+
+        # Updates
+        update_group = QGroupBox("Updates")
+        update_layout = QVBoxLayout(update_group)
+        
+        check_update_btn = QPushButton("Check for Updates")
+        check_update_btn.setMaximumWidth(200)
+        check_update_btn.clicked.connect(self._check_for_updates)
+        
+        update_layout.addWidget(check_update_btn)
+        update_group.setLayout(update_layout)
+        layout.addWidget(update_group)
         
         layout.addStretch()
         return widget
@@ -468,3 +482,12 @@ class SettingsDialog(QDialog):
             except Exception as e:
                 logger.error(f"Error clearing cache: {e}")
                 QMessageBox.warning(self, "Error", f"Failed to clear some cache files: {e}")
+
+    @Slot()
+    def _check_for_updates(self):
+        """Check for application updates"""
+        version = QApplication.instance().applicationVersion()
+        if not version:
+            version = "0.0.0" # Fallback
+        UpdateChecker.check_for_updates(version, self)
+

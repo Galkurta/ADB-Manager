@@ -18,6 +18,17 @@ BrandingText "ADB Manager Installer"
 
 ; Pages
 !insertmacro MUI_PAGE_WELCOME
+
+; Function to close running application
+Function .onInit
+    ; Check if process is running and kill it
+    nsExec::Exec 'taskkill /F /IM "ADB-Manager.exe"'
+    ; Give it a second to close
+    Sleep 1000
+    
+    ; Also try to close pure python naming if running from source (unlikely in installer but good practice)
+    ; nsExec::Exec 'taskkill /F /IM "python.exe"' ; Too dangerous
+FunctionEnd
 !insertmacro MUI_PAGE_LICENSE "LICENSE" ; You might need to create this or remove if no license
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
