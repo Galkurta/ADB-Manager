@@ -428,6 +428,43 @@ class SettingsDialog(QDialog):
         )
         
         if reply == QMessageBox.Yes:
-            # TODO: Implement cache clearing
-            QMessageBox.information(self, "Cache Cleared", "Cache has been cleared successfully.")
-            logger.info("Cache cleared")
+            try:
+                # 1. Clear device cache
+                cache_file = Path("config/device_cache.json")
+                if cache_file.exists():
+                    cache_file.unlink()
+                    logger.info("Removed device cache file")
+
+                # 2. Clear logs (keep current log file if possible, or just delete old ones)
+                log_dir = Path("logs")
+                if log_dir.exists():
+                    current_log = None
+                    # Try to identify current log file (it's locked likely)
+                    # Simple approach: try to delete all, ignore errors for locked files
+                    deleted_count = 0
+                    for log_file in log_dir.glob("*.log"):
+                        try:
+                            log_file.unlink()
+                            deleted_count += 1
+                        except OSError:
+                            pass # Likely currently open
+                    logger.info(f"Cleared {deleted_count} log files")
+                
+                # 3. Clear temp binaries if any
+                for temp_dir in ["binaries_temp", "binaries_temp_scrcpy"]:
+                    path = Path(temp_dir)
+                    if path.exists():
+                        import shutil
+                        shutil.rmtree(path, ignore_errors=True)
+
+                QMessageBox.information(
+                    self, 
+                    "Cache Cleared", 
+                    "Temporary files, logs, and device cache have been cleared.\n"
+                    "Some settings may take effect after restart."
+                )
+                logger.info("Cache clearing completed")
+            
+            except Exception as e:
+                logger.error(f"Error clearing cache: {e}")
+                QMessageBox.warning(self, "Error", f"Failed to clear some cache files: {e}")
