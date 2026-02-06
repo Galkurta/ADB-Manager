@@ -117,16 +117,12 @@ class MirrorEngine(QObject):
                 'stderr': asyncio.subprocess.PIPE
             }
             
-            # Hide console window on Windows
+            # On Windows, use DETACHED_PROCESS to prevent console inheritance
+            # but allow scrcpy's SDL GUI window to appear normally
             import sys
             import subprocess
             if sys.platform == 'win32':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-                kwargs['startupinfo'] = startupinfo
-                # Note: CREATE_NO_WINDOW can sometimes prevent GUI apps launched from console from showing
-                # So we rely on SW_HIDE for scrcpy
+                kwargs['creationflags'] = subprocess.DETACHED_PROCESS
             
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
