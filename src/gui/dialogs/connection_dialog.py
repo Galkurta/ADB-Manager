@@ -212,7 +212,7 @@ class WirelessDialog(QDialog):
         # QR Display Container - separate placeholder text from QR image
         qr_container = QFrame()
         qr_container.setStyleSheet("border: 1px solid gray; border-radius: 4px;")
-        qr_container.setMinimumHeight(280)
+        qr_container.setMinimumHeight(250)
         qr_container_layout = QVBoxLayout(qr_container)
         qr_container_layout.setAlignment(Qt.AlignCenter)
         
@@ -539,62 +539,21 @@ class WirelessDialog(QDialog):
             # Format: WIFI:T:ADB;S:<service_name>;P:<password>;;
             qr_data = f"WIFI:T:ADB;S:{service_name}@{local_ip}:{port};P:{password};;"
             
-            # Generate QR code
-            qr = qrcode.QRCode(version=1, box_size=8, border=2)
+            # Generate QR code at target size (box_size=6 for ~200px)
+            qr = qrcode.QRCode(version=1, box_size=6, border=2)
             qr.add_data(qr_data)
             qr.make(fit=True)
-            qr_img = qr.make_image(fill_color="white", back_color="#2b2b2b")
             
-            # Create composite image with QR + text below (dark theme)
-            from PIL import Image, ImageDraw, ImageFont
+            # Create QR image (white modules on dark background) - JUST the QR, no text
+            qr_img = qr.make_image(fill_color="white", back_color="#1e1e1e")
             
-            qr_size = qr_img.size[0]
-            text_lines = [
-                f"IP: {local_ip}",
-                f"Port: {port}",
-                f"Code: {password}"
-            ]
-            
-            # Calculate text height (approximately 20px per line + padding)
-            line_height = 22
-            text_padding = 15
-            text_height = len(text_lines) * line_height + text_padding * 2
-            
-            # Create larger canvas
-            canvas_width = qr_size
-            canvas_height = qr_size + text_height
-            canvas = Image.new('RGB', (canvas_width, canvas_height), color='#2b2b2b')
-            
-            # Paste QR code at top (convert to RGB first)
-            qr_rgb = qr_img.convert('RGB')
-            canvas.paste(qr_rgb, (0, 0, qr_size, qr_size))
-            
-            # Draw text below QR
-            draw = ImageDraw.Draw(canvas)
-            try:
-                font = ImageFont.truetype("arial.ttf", 16)
-            except:
-                font = ImageFont.load_default()
-            
-            y = qr_size + text_padding
-            for line in text_lines:
-                # Get text width for centering
-                bbox = draw.textbbox((0, 0), line, font=font)
-                text_width = bbox[2] - bbox[0]
-                x = (canvas_width - text_width) // 2
-                draw.text((x, y), line, fill='white', font=font)
-                y += line_height
-            
-            # Convert to QPixmap
+            # Convert to QPixmap for Qt display
             buffer = io.BytesIO()
-            canvas.save(buffer, format='PNG')
+            qr_img.save(buffer, format='PNG')
             buffer.seek(0)
             
             pixmap = QPixmap()
             pixmap.loadFromData(buffer.read())
-            
-            # Scale to fit container while maintaining aspect ratio
-            pixmap = pixmap.scaled(250, 280, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             
             # Hide placeholder, show QR image
             self.qr_placeholder_label.setVisible(False)
@@ -609,8 +568,10 @@ class WirelessDialog(QDialog):
             )
             self._mdns_thread.start()
             
-            # Clear status label (info is now in image)
-            self.mdns_status_label.setText("")
+            # Display connection info in status label BELOW the container
+            self.mdns_status_label.setText(
+                f"<b>IP:</b> {local_ip}  |  <b>Port:</b> {port}  |  <b>Code:</b> {password}"
+            )
             
             self.generate_qr_btn.setEnabled(False)
             self.stop_mdns_btn.setEnabled(True)
@@ -633,12 +594,14 @@ class WirelessDialog(QDialog):
             return None
     
     def _start_mdns_service(self, name: str, ip: str, port: int, password: str):
-        """Start mDNS service for pairing"""
+        """Start mDNS service and pairing listener for QR pairing"""
         try:
             from zeroconf import Zeroconf, ServiceInfo
             import socket
+            import subprocess
             
             self._zeroconf = Zeroconf()
+            self._pairing_active = True
             
             # Create service info for ADB pairing
             service_type = "_adb-tls-pairing._tcp.local."
@@ -659,14 +622,118 @@ class WirelessDialog(QDialog):
             
             logger.info(f"mDNS service registered: {service_name}")
             
+            # Monitor for incoming pairing requests by watching mDNS
+            # The phone will advertise its own pairing service when it scans the QR
+            self._listen_for_phone_pairing(password)
+            
         except Exception as e:
             logger.error(f"mDNS service error: {e}")
-            self.mdns_status_label.setText(f"mDNS Error: {e}")
+            # Update status on main thread
+            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+            QMetaObject.invokeMethod(
+                self.mdns_status_label, "setText", 
+                Qt.ConnectionType.QueuedConnection,
+                Q_ARG(str, f"mDNS Error: {e}")
+            )
+    
+    def _listen_for_phone_pairing(self, password: str):
+        """Listen for phone's pairing service and complete pairing with adb pair"""
+        try:
+            from zeroconf import ServiceBrowser, ServiceListener
+            import subprocess
+            import time
+            
+            local_ip = self._get_local_ip()
+            
+            class PhonePairingListener(ServiceListener):
+                def __init__(self, parent, password, local_ip):
+                    self.parent = parent
+                    self.password = password
+                    self.local_ip = local_ip
+                    self.paired = False
+                
+                def add_service(self, zc, type_, name):
+                    if self.paired:
+                        return
+                    info = zc.get_service_info(type_, name)
+                    if info and info.addresses:
+                        # Found a pairing service
+                        detected_ip = socket.inet_ntoa(info.addresses[0])
+                        detected_port = info.port
+                        
+                        # Skip our own service (same IP as us)
+                        if detected_ip == self.local_ip:
+                            logger.debug(f"Ignoring our own mDNS service at {detected_ip}")
+                            return
+                        
+                        logger.info(f"Found phone pairing service: {detected_ip}:{detected_port}")
+                        
+                        # Run adb pair command
+                        try:
+                            result = subprocess.run(
+                                ["adb", "pair", f"{detected_ip}:{detected_port}", self.password],
+                                capture_output=True, text=True, timeout=30
+                            )
+                            if "Successfully paired" in result.stdout:
+                                self.paired = True
+                                logger.info("Pairing successful!")
+                                # Update UI on main thread
+                                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                                QMetaObject.invokeMethod(
+                                    self.parent.mdns_status_label, "setText",
+                                    Qt.ConnectionType.QueuedConnection,
+                                    Q_ARG(str, f"Paired! Now connecting to {detected_ip}...")
+                                )
+                                # Try to connect
+                                time.sleep(1)
+                                connect_result = subprocess.run(
+                                    ["adb", "connect", f"{detected_ip}:5555"],
+                                    capture_output=True, text=True, timeout=10
+                                )
+                                if "connected" in connect_result.stdout.lower():
+                                    QMetaObject.invokeMethod(
+                                        self.parent.mdns_status_label, "setText",
+                                        Qt.ConnectionType.QueuedConnection,
+                                        Q_ARG(str, f"Connected to {detected_ip}!")
+                                    )
+                            else:
+                                logger.warning(f"Pairing result: {result.stdout} {result.stderr}")
+                        except subprocess.TimeoutExpired:
+                            logger.warning("adb pair timeout")
+                        except Exception as e:
+                            logger.error(f"adb pair error: {e}")
+                
+                def remove_service(self, zc, type_, name):
+                    pass
+                
+                def update_service(self, zc, type_, name):
+                    pass
+            
+            # Browse for phone's pairing service
+            listener = PhonePairingListener(self, password, local_ip)
+            browser = ServiceBrowser(
+                self._zeroconf, 
+                "_adb-tls-pairing._tcp.local.", 
+                listener
+            )
+            self._mdns_browser = browser
+            
+            logger.info("Listening for phone pairing service...")
+            
+        except Exception as e:
+            logger.error(f"Phone pairing listener error: {e}")
     
     @Slot()
     def _stop_mdns_service(self):
         """Stop mDNS service"""
         try:
+            # Stop the browser first
+            if hasattr(self, '_mdns_browser') and self._mdns_browser:
+                self._mdns_browser.cancel()
+                self._mdns_browser = None
+            
+            self._pairing_active = False
+            
             if self._mdns_service and hasattr(self, '_zeroconf'):
                 self._zeroconf.unregister_service(self._mdns_service)
                 self._zeroconf.close()
