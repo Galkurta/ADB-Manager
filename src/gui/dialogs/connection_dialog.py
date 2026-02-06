@@ -12,6 +12,7 @@ import re
 import io
 import asyncio
 import secrets
+import threading
 import socket
 from pathlib import Path
 from typing import Optional, Tuple
@@ -538,10 +539,17 @@ class WirelessDialog(QDialog):
             pixmap.loadFromData(buffer.read())
             pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio)
             
+            # Clear placeholder text before setting pixmap
+            self.qr_display_label.clear()
             self.qr_display_label.setPixmap(pixmap)
             
-            # Start mDNS service
-            self._start_mdns_service(service_name, local_ip, port, password)
+            # Start mDNS service in background thread (avoids UI freeze)
+            self._mdns_thread = threading.Thread(
+                target=self._start_mdns_service,
+                args=(service_name, local_ip, port, password),
+                daemon=True
+            )
+            self._mdns_thread.start()
             
             self.mdns_status_label.setText(
                 f"<b>Service Active</b><br>"
@@ -613,6 +621,7 @@ class WirelessDialog(QDialog):
         except Exception as e:
             logger.error(f"Error stopping mDNS: {e}")
         
+        self.qr_display_label.clear()
         self.qr_display_label.setText("Click 'Generate QR Code' to create pairing code")
         self.mdns_status_label.setText("")
         self.generate_qr_btn.setEnabled(True)
