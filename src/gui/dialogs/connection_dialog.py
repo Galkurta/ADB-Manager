@@ -565,8 +565,9 @@ class WirelessDialog(QDialog):
             canvas_height = qr_size + text_height
             canvas = Image.new('RGB', (canvas_width, canvas_height), color='#2b2b2b')
             
-            # Paste QR code at top
-            canvas.paste(qr_img, (0, 0))
+            # Paste QR code at top (convert to RGB first)
+            qr_rgb = qr_img.convert('RGB')
+            canvas.paste(qr_rgb, (0, 0, qr_size, qr_size))
             
             # Draw text below QR
             draw = ImageDraw.Draw(canvas)
