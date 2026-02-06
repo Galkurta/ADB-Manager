@@ -127,7 +127,14 @@ def main():
     
     # Check if tag exists (should not happened if we synced but safer)
     try:
-        run_command(f"git rev-parse v{new_version}", exit_on_error=False)
+        # Check silently
+        subprocess.run(
+            f"git rev-parse v{new_version}", 
+            shell=True, 
+            check=True, 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL
+        )
         print(f"Warning: Tag v{new_version} already exists locally.")
     except:
         pass # Good, tag doesn't exist
