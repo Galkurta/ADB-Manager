@@ -67,9 +67,10 @@ def bump_version(current_version, part="patch"):
     return f"{major}.{minor}.{patch}"
 
 def git_sync():
-    """Sync with remote."""
+    """Sync with remote (Pull then Push)."""
     print("\n--- Syncing with Remote ---")
     run_command("git pull origin HEAD")
+    run_command("git push origin HEAD")
     print("Sync complete.")
 
 def main():
