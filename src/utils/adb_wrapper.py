@@ -60,8 +60,22 @@ class ADBWrapper:
         Returns:
             Path to ADB executable
         """
+        import sys
+        
         system = platform.system().lower()
-        base_path = Path(__file__).parent.parent.parent / "binaries" / "adb"
+        
+        # Determine base directory
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable (PyInstaller)
+            if hasattr(sys, '_MEIPASS'):
+                base_dir = Path(sys._MEIPASS)
+            else:
+                base_dir = Path(sys.executable).parent
+        else:
+            # Running from source
+            base_dir = Path(__file__).parent.parent.parent
+            
+        base_path = base_dir / "binaries" / "adb"
         
         # Check specific platform folder first (user structure)
         if system == "windows":
