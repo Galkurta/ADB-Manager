@@ -33,7 +33,7 @@ def main():
     app = QApplication(sys.argv)
     
     # Version Control
-    __version__ = "0.1.2"
+    __version__ = "0.1.3"
     
     app.setApplicationName("ADB Manager")
     app.setOrganizationName("ADB Manager")
