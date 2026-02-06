@@ -539,8 +539,9 @@ class WirelessDialog(QDialog):
             pixmap.loadFromData(buffer.read())
             pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio)
             
-            # Clear placeholder text before setting pixmap
-            self.qr_display_label.clear()
+            # Clear placeholder text completely before setting pixmap
+            self.qr_display_label.setText("")
+            self.qr_display_label.setStyleSheet("border: 1px solid gray; border-radius: 4px;")
             self.qr_display_label.setPixmap(pixmap)
             
             # Start mDNS service in background thread (avoids UI freeze)
