@@ -42,10 +42,11 @@ class UpdateChecker:
                     reply = QMessageBox.question(
                         parent_widget,
                         "Update Available",
-                        f"A new version is available!\n\n"
-                        f"Current: {current_version}\n"
-                        f"Latest: {latest_tag}\n\n"
-                        "Do you want to download it now?",
+                        f"<p style='text-align: center;'>A new version is available!</p>"
+                        f"<p style='text-align: center;'>"
+                        f"Current: <b>v{current_version}</b><br>"
+                        f"Latest: <b>v{latest_tag}</b></p>"
+                        f"<p style='text-align: center;'>Download now?</p>",
                         QMessageBox.Yes | QMessageBox.No
                     )
                     
@@ -54,7 +55,11 @@ class UpdateChecker:
             else:
                 logger.info("App is up to date.")
                 if not silent and parent_widget:
-                    QMessageBox.information(parent_widget, "Up to Date", f"You are using the latest version ({current_version}).")
+                    QMessageBox.information(
+                        parent_widget, 
+                        "Up to Date", 
+                        f"<p style='text-align: center;'>You are using the latest version<br><b>v{current_version}</b></p>"
+                    )
 
         except Exception as e:
             logger.error(f"Update check failed: {e}")
