@@ -25,9 +25,30 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Download ADB Platform Tools
+        run: |
+          Invoke-WebRequest -Uri "https://dl.google.com/android/repository/platform-tools-latest-windows.zip" -OutFile "platform-tools.zip"
+          Expand-Archive "platform-tools.zip" -DestinationPath "binaries_temp"
+          New-Item -ItemType Directory -Force -Path "binaries/adb"
+          Copy-Item -Path "binaries_temp/platform-tools/*" -Destination "binaries/adb" -Recurse -Force
+
+      - name: Download Scrcpy
+        run: |
+          $scrcpy_version = "v3.1"
+          Invoke-WebRequest -Uri "https://github.com/Genymobile/scrcpy/releases/download/$scrcpy_version/scrcpy-win64-$scrcpy_version.zip" -OutFile "scrcpy.zip"
+          Expand-Archive "scrcpy.zip" -DestinationPath "binaries_temp_scrcpy"
+          New-Item -ItemType Directory -Force -Path "binaries/scrcpy"
+          # Scrcpy zip contains a subfolder, so we copy contents of that subfolder
+          Copy-Item -Path "binaries_temp_scrcpy/scrcpy-win64-$scrcpy_version/*" -Destination "binaries/scrcpy" -Recurse -Force
+
       - name: Build executable with PyInstaller
         run: |
           pyinstaller ADB-Manager.spec
+
+      - name: Build Installer (NSIS)
+        uses: joncloud/makensis-action@v1
+        with:
+          script-file: installer.nsi
 
       - name: Create portable archive
         run: |
@@ -37,7 +58,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ADB-Manager-Windows
-          path: ADB-Manager-Windows-x64.zip
+          path: |
+            ADB-Manager-Windows-x64.zip
+            ADB-Manager-Setup.exe
 
   create-release:
     needs: build-windows
@@ -61,6 +84,7 @@ jobs:
         with:
           files: |
             ADB-Manager-Windows-x64.zip
+            ADB-Manager-Setup.exe
           generate_release_notes: true
           draft: false
           prerelease: false
