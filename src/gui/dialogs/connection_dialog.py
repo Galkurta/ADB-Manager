@@ -540,19 +540,57 @@ class WirelessDialog(QDialog):
             qr_data = f"WIFI:T:ADB;S:{service_name}@{local_ip}:{port};P:{password};;"
             
             # Generate QR code
-            qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            qr = qrcode.QRCode(version=1, box_size=8, border=2)
             qr.add_data(qr_data)
             qr.make(fit=True)
-            qr_img = qr.make_image(fill_color="black", back_color="white")
+            qr_img = qr.make_image(fill_color="white", back_color="#2b2b2b")
+            
+            # Create composite image with QR + text below (dark theme)
+            from PIL import Image, ImageDraw, ImageFont
+            
+            qr_size = qr_img.size[0]
+            text_lines = [
+                f"IP: {local_ip}",
+                f"Port: {port}",
+                f"Code: {password}"
+            ]
+            
+            # Calculate text height (approximately 20px per line + padding)
+            line_height = 22
+            text_padding = 15
+            text_height = len(text_lines) * line_height + text_padding * 2
+            
+            # Create larger canvas
+            canvas_width = qr_size
+            canvas_height = qr_size + text_height
+            canvas = Image.new('RGB', (canvas_width, canvas_height), color='#2b2b2b')
+            
+            # Paste QR code at top
+            canvas.paste(qr_img, (0, 0))
+            
+            # Draw text below QR
+            draw = ImageDraw.Draw(canvas)
+            try:
+                font = ImageFont.truetype("arial.ttf", 16)
+            except:
+                font = ImageFont.load_default()
+            
+            y = qr_size + text_padding
+            for line in text_lines:
+                # Get text width for centering
+                bbox = draw.textbbox((0, 0), line, font=font)
+                text_width = bbox[2] - bbox[0]
+                x = (canvas_width - text_width) // 2
+                draw.text((x, y), line, fill='white', font=font)
+                y += line_height
             
             # Convert to QPixmap
             buffer = io.BytesIO()
-            qr_img.save(buffer, format='PNG')
+            canvas.save(buffer, format='PNG')
             buffer.seek(0)
             
             pixmap = QPixmap()
             pixmap.loadFromData(buffer.read())
-            pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio)
             
             # Hide placeholder, show QR image
             self.qr_placeholder_label.setVisible(False)
@@ -567,12 +605,8 @@ class WirelessDialog(QDialog):
             )
             self._mdns_thread.start()
             
-            self.mdns_status_label.setText(
-                f"<b>Service Active</b><br>"
-                f"IP: {local_ip}<br>"
-                f"Port: {port}<br>"
-                f"Code: {password}"
-            )
+            # Clear status label (info is now in image)
+            self.mdns_status_label.setText("")
             
             self.generate_qr_btn.setEnabled(False)
             self.stop_mdns_btn.setEnabled(True)
