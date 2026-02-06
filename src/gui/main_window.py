@@ -17,6 +17,7 @@ from pathlib import Path
 
 from utils.adb_wrapper import ADBWrapper
 from utils.async_helper import safe_ensure_future
+from utils.update_checker import UpdateChecker
 from core.device_manager import DeviceManager, Device
 from gui.themes import ThemeManager, Theme
 
@@ -62,6 +63,10 @@ class MainWindow(QMainWindow):
         self._setup_ui()
         self._connect_signals()
         self._load_theme()
+        
+        # Auto-check for updates after a short delay (don't block startup)
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(3000, lambda: self._check_for_updates(silent=True))
         
         logger.info("Main window initialized")
     
@@ -148,6 +153,12 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self.theme_action)
         
         help_menu = menubar.addMenu("&Help")
+        
+        check_updates_action = QAction("Check for &Updates...", self)
+        check_updates_action.triggered.connect(self._check_for_updates)
+        help_menu.addAction(check_updates_action)
+        
+        help_menu.addSeparator()
         
         about_action = QAction("&About", self)
         about_action.triggered.connect(self._show_about)
@@ -314,13 +325,22 @@ class MainWindow(QMainWindow):
     @Slot()
     def _show_about(self):
         """Show about dialog"""
+        from PySide6.QtWidgets import QApplication
+        version = QApplication.instance().applicationVersion() or "0.0.0"
         QMessageBox.about(
             self,
             "About ADB Manager",
-            "<h3>ADB Manager v0.1.0</h3>"
+            f"<h3>ADB Manager v{version}</h3>"
             "<p>A modern GUI wrapper for Android Debug Bridge</p>"
             "<p>Built with Python and PySide6</p>"
         )
+    
+    @Slot()
+    def _check_for_updates(self, silent: bool = False):
+        """Check for application updates"""
+        from PySide6.QtWidgets import QApplication
+        version = QApplication.instance().applicationVersion() or "0.0.0"
+        UpdateChecker.check_for_updates(version, self, silent=silent)
     
     def closeEvent(self, event):
         """Handle window close event - cleanup all async resources"""
