@@ -48,11 +48,11 @@ Section "ADB Manager (required)" SecMain
     
     ; Create Start Menu Shortcuts
     CreateDirectory "$SMPROGRAMS\ADB Manager"
-    CreateShortcut "$SMPROGRAMS\ADB Manager\ADB Manager.lnk" "$INSTDIR\ADB-Manager.exe" "" "$INSTDIR\resources\icons\icon.ico"
+    CreateShortcut "$SMPROGRAMS\ADB Manager\ADB Manager.lnk" "$INSTDIR\ADB-Manager.exe" "" "$INSTDIR\_internal\resources\icons\icon.ico"
     CreateShortcut "$SMPROGRAMS\ADB Manager\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
     
     ; Create Desktop Shortcut
-    CreateShortcut "$DESKTOP\ADB Manager.lnk" "$INSTDIR\ADB-Manager.exe" "" "$INSTDIR\resources\icons\icon.ico"
+    CreateShortcut "$DESKTOP\ADB Manager.lnk" "$INSTDIR\ADB-Manager.exe" "" "$INSTDIR\_internal\resources\icons\icon.ico"
     
     ; Registry keys for Add/Remove programs
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ADBManager" "DisplayName" "ADB Manager"
