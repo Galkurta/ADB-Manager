@@ -61,15 +61,24 @@ class ADBWrapper:
             Path to ADB executable
         """
         system = platform.system().lower()
-        bundled_path = Path(__file__).parent.parent.parent / "binaries" / "adb"
+        base_path = Path(__file__).parent.parent.parent / "binaries" / "adb"
         
+        # Check specific platform folder first (user structure)
         if system == "windows":
-            adb_exe = bundled_path / "windows" / "adb.exe"
+            platform_path = base_path / "windows" / "adb.exe"
+            if platform_path.exists():
+                return platform_path
         elif system == "darwin":
-            adb_exe = bundled_path / "macos" / "adb"
+            platform_path = base_path / "macos" / "adb"
+            if platform_path.exists():
+                return platform_path
         else:  # Linux
-            adb_exe = bundled_path / "linux" / "adb"
+            platform_path = base_path / "linux" / "adb"
+            if platform_path.exists():
+                return platform_path
         
+        # Check root of adb folder (CI structure)
+        adb_exe = base_path / ("adb.exe" if system == "windows" else "adb")
         if adb_exe.exists():
             return adb_exe
         
