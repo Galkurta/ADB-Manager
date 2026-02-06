@@ -66,11 +66,24 @@ class ShellManager(QObject):
             
             logger.info(f"Starting shell session for device {device}")
             
+            # Prepare subprocess args
+            kwargs = {
+                'stdin': asyncio.subprocess.PIPE,
+                'stdout': asyncio.subprocess.PIPE,
+                'stderr': asyncio.subprocess.PIPE
+            }
+            
+            import sys
+            import subprocess
+            if sys.platform == 'win32':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+                kwargs['startupinfo'] = startupinfo
+
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                **kwargs
             )
             
             self._active = True

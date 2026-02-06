@@ -95,10 +95,23 @@ class LogcatStreamer(QObject):
         try:
             full_cmd = [str(self.adb.adb_path), "-s", device] + cmd
             
+            # Prepare subprocess args
+            kwargs = {
+                'stdout': asyncio.subprocess.PIPE,
+                'stderr': asyncio.subprocess.PIPE
+            }
+            
+            import sys
+            import subprocess
+            if sys.platform == 'win32':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+                kwargs['startupinfo'] = startupinfo
+
             process = await asyncio.create_subprocess_exec(
                 *full_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                **kwargs
             )
             
             while self._streaming and process.stdout:

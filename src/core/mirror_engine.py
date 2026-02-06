@@ -123,8 +123,10 @@ class MirrorEngine(QObject):
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
                 kwargs['startupinfo'] = startupinfo
-                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                # Note: CREATE_NO_WINDOW can sometimes prevent GUI apps launched from console from showing
+                # So we rely on SW_HIDE for scrcpy
             
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
