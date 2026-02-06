@@ -212,7 +212,7 @@ class WirelessDialog(QDialog):
         # QR Display Container - separate placeholder text from QR image
         qr_container = QFrame()
         qr_container.setStyleSheet("border: 1px solid gray; border-radius: 4px;")
-        qr_container.setMinimumHeight(220)
+        qr_container.setMinimumHeight(280)
         qr_container_layout = QVBoxLayout(qr_container)
         qr_container_layout.setAlignment(Qt.AlignCenter)
         
@@ -592,6 +592,9 @@ class WirelessDialog(QDialog):
             
             pixmap = QPixmap()
             pixmap.loadFromData(buffer.read())
+            
+            # Scale to fit container while maintaining aspect ratio
+            pixmap = pixmap.scaled(250, 280, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             
             # Hide placeholder, show QR image
             self.qr_placeholder_label.setVisible(False)
