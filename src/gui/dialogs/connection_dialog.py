@@ -209,12 +209,27 @@ class WirelessDialog(QDialog):
         instructions.setTextFormat(Qt.RichText)
         layout.addWidget(instructions)
         
-        # QR Display
-        self.qr_display_label = QLabel("Click 'Generate QR Code' to create pairing code")
+        # QR Display Container - separate placeholder text from QR image
+        qr_container = QFrame()
+        qr_container.setStyleSheet("border: 1px solid gray; border-radius: 4px;")
+        qr_container.setMinimumHeight(220)
+        qr_container_layout = QVBoxLayout(qr_container)
+        qr_container_layout.setAlignment(Qt.AlignCenter)
+        
+        # Placeholder text (shown initially)
+        self.qr_placeholder_label = QLabel("Click 'Generate QR Code' to create pairing code")
+        self.qr_placeholder_label.setAlignment(Qt.AlignCenter)
+        self.qr_placeholder_label.setStyleSheet("border: none;")
+        qr_container_layout.addWidget(self.qr_placeholder_label)
+        
+        # QR image (hidden initially)
+        self.qr_display_label = QLabel()
         self.qr_display_label.setAlignment(Qt.AlignCenter)
-        self.qr_display_label.setMinimumHeight(200)
-        self.qr_display_label.setStyleSheet("border: 1px solid gray; border-radius: 4px; background: white;")
-        layout.addWidget(self.qr_display_label)
+        self.qr_display_label.setStyleSheet("border: none;")
+        self.qr_display_label.setVisible(False)
+        qr_container_layout.addWidget(self.qr_display_label)
+        
+        layout.addWidget(qr_container)
         
         # Status/info
         self.mdns_status_label = QLabel("")
@@ -539,9 +554,9 @@ class WirelessDialog(QDialog):
             pixmap.loadFromData(buffer.read())
             pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio)
             
-            # Clear placeholder text completely before setting pixmap
-            self.qr_display_label.setText("")
-            self.qr_display_label.setStyleSheet("border: 1px solid gray; border-radius: 4px;")
+            # Hide placeholder, show QR image
+            self.qr_placeholder_label.setVisible(False)
+            self.qr_display_label.setVisible(True)
             self.qr_display_label.setPixmap(pixmap)
             
             # Start mDNS service in background thread (avoids UI freeze)
@@ -622,8 +637,10 @@ class WirelessDialog(QDialog):
         except Exception as e:
             logger.error(f"Error stopping mDNS: {e}")
         
+        # Show placeholder, hide QR image
+        self.qr_display_label.setVisible(False)
         self.qr_display_label.clear()
-        self.qr_display_label.setText("Click 'Generate QR Code' to create pairing code")
+        self.qr_placeholder_label.setVisible(True)
         self.mdns_status_label.setText("")
         self.generate_qr_btn.setEnabled(True)
         self.stop_mdns_btn.setEnabled(False)
